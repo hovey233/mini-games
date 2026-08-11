@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>俄罗斯方块 Tetris</title>
+<style>
+  :root { --bg:#1b1f2a; --panel:#283041; --line:#141821; --text:#e8ecf5; --accent:#ffb454; --good:#4ec9b0; }
+  * { box-sizing: border-box; }
+  body { margin:0; min-height:100vh; background:radial-gradient(1200px 600px at 50% -10%, #232a3a, var(--bg));
+    color:var(--text); font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    display:flex; flex-direction:column; align-items:center; padding:18px 12px 36px; }
+  h1 { font-size:20px; letter-spacing:2px; margin:2px 0 12px; }
+  .hud { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-bottom:10px; }
+  .box { background:var(--line); border-radius:10px; padding:6px 12px; text-align:center; min-width:64px; }
+  .box .k { font-size:11px; color:#8b94ab; }
+  .box .v { font-size:18px; font-weight:700; color:var(--accent); }
+  #wrap { position:relative; }
+  canvas { background:var(--line); border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,.35); display:block; touch-action:none; }
+  .ctrls { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:12px; width:280px; }
+  .ctrls button { background:var(--panel); color:var(--text); border:1px solid #3a4256; border-radius:10px;
+    padding:12px 0; font-size:20px; cursor:pointer; user-select:none; }
+  .ctrls button:active { background:var(--accent); color:#1b1f2a; }
+  .face { margin-top:12px; width:46px; height:46px; border-radius:50%; border:none; background:var(--accent);
+    color:#1b1f2a; font-size:22px; cursor:pointer; }
+  .status { min-height:20px; margin-top:12px; color:var(--good); font-weight:600; }
+  .tips { color:#8b94ab; font-size:12px; margin-top:14px; max-width:300px; text-align:center; line-height:1.7; }
+</style>
+</head>
+<body>
+  <a href="index.html" style="position:fixed;top:10px;left:12px;z-index:50;background:#283041;color:#e8ecf5;text-decoration:none;padding:6px 12px;border-radius:10px;font-size:13px;border:1px solid #3a4256;">🏠 大厅</a>
+  <h1>🧱 俄罗斯方块 TETRIS</h1>
+  <div class="hud">
+    <div class="box"><div class="k">分数</div><div class="v" id="score">0</div></div>
+    <div class="box"><div class="k">消行</div><div class="v" id="lines">0</div></div>
+    <div class="box"><div class="k">等级</div><div class="v" id="level">1</div></div>
+    <div class="box"><div class="k">下一个</div><canvas id="next" width="84" height="84"></canvas></div>
+  </div>
+  <div id="wrap"><canvas id="board" width="280" height="560"></canvas></div>
+  <div class="ctrls">
+    <button data-a="left">◀</button>
+    <button data-a="rotate">⟳</button>
+    <button data-a="right">▶</button>
+    <button data-a="drop">⤓</button>
+  </div>
+  <button class="face" id="face" title="重开">🙂</button>
+  <div class="status" id="status"></div>
+  <div class="tips">电脑：← → 移动，↑/X 旋转，↓ 软降，空格 硬降。<br>手机：用下方按钮，或直接在方块上滑动。</div>
+
+<script>
+const COLS=10, ROWS=20, CELL=28;
+const board=document.getElementById('board'), ctx=board.getContext('2d');
+const nextC=document.getElementById('next'), nctx=nextC.getContext('2d');
+const scoreEl=document.getElementById('score'), linesEl=document.getElementById('lines'),
+      levelEl=document.getElementById('level'), statusEl=document.getElementById('status'), faceEl=document.getElementById('face');
+
+const SHAPES={
+  I:{c:'#5b9cff', m:[[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]]},
+  O:{c:'#ffb454', m:[[1,1],[1,1]]},
+  T:{c:'#c08bff', m:[[0,1,0],[1,1,1],[0,0,0]]},
+  S:{c:'#4ec9b0', m:[[0,1,1],[1,1,0],[0,0,0]]},
+  Z:{c:'#ff8a8a', m:[[1,1,0],[0,1,1],[0,0,0]]},
+  J:{c:'#6ee7ff', m:[[1,0,0],[1,1,1],[0,0,0]]},
+  L:{c:'#ff7ad9', m:[[0,0,1],[1,1,1],[0,0,0]]},
+};
+const KEYS=Object.keys(SHAPES);
+let grid, cur, next, score, lines, level, dropInt, timerId, over;
+
+function newGrid(){ return Array.from({length:ROWS},()=>Array(COLS).fill(null)); }
+function rotate(m){ const R=m.length, C=m[0].length;
+  const r=Array.from({length:C},()=>Array(R).fill(0));
+  for(let y=0;y<R;y++) for(let x=0;x<C;x++) r[x][R-1-y]=m[y][x];
+  return r; }
+function spawn(){ const k=next||KEYS[Math.floor(Math.random()*KEYS.length)];
+  next=KEYS[Math.floor(Math.random()*KEYS.length)];
+  const s=SHAPES[k];
+  cur={k, c:s.c, m:s.m.map(r=>r.slice()), x:Math.floor((COLS-s.m[0].length)/2), y:0};
+  drawNext();
+  if(collide(cur.m,cur.x,cur.y)) gameOver();
+}
+function collide(m,x,y){ for(let yy=0;yy<m.length;yy++) for(let xx=0;xx<m[yy].length;xx++)
+  if(m[yy][xx]){ const nx=x+xx, ny=y+yy;
+    if(nx<0||nx>=COLS||ny>=ROWS) return true;
+    if(ny>=0 && grid[ny][nx]) return true; }
+  return false; }
+function merge(){ for(let yy=0;yy<cur.m.length;yy++) for(let xx=0;xx<cur.m[yy].length;xx++)
+  if(cur.m[yy][xx]){ const ny=cur.y+yy, nx=cur.x+xx; if(ny>=0) grid[ny][nx]=cur.c; } }
+function clearLines(){ let n=0;
+  for(let y=ROWS-1;y>=0;y--){ if(grid[y].every(c=>c)){ grid.splice(y,1); grid.unshift(Array(COLS).fill(null)); n++; y++; } }
+  if(n){ lines+=n; score+= [0,100,300,500,800][n]*level; level=Math.floor(lines/10)+1;
+    updateHud(); setSpeed(); } }
+function move(dx){ if(over) return; if(!collide(cur.m,cur.x+dx,cur.y)){ cur.x+=dx; draw(); } }
+function rotateCur(){ if(over) return; const r=rotate(cur.m); if(!collide(r,cur.x,cur.y)){ cur.m=r; draw(); } }
+function softDrop(){ if(over) return; if(!collide(cur.m,cur.x,cur.y+1)){ cur.y++; } else { lock(); } draw(); }
+function hardDrop(){ if(over) return; while(!collide(cur.m,cur.x,cur.y+1)) cur.y++; lock(); draw(); }
+function lock(){ merge(); clearLines(); spawn(); }
+function updateHud(){ scoreEl.textContent=score; linesEl.textContent=lines; levelEl.textContent=level; }
+function setSpeed(){ clearInterval(timerId); dropInt=Math.max(90, 600-level*45); timerId=setInterval(softDrop, dropInt); }
+function drawCell(g,x,y,c,s=CELL){ g.fillStyle=c; g.fillRect(x*s+1,y*s+1,s-2,s-2);
+  g.fillStyle='rgba(255,255,255,.12)'; g.fillRect(x*s+1,y*s+1,s-2,4); }
+function draw(){ ctx.fillStyle='#141821'; ctx.fillRect(0,0,board.width,board.height);
+  for(let y=0;y<ROWS;y++) for(let x=0;x<COLS;x++) if(grid[y][x]) drawCell(ctx,x,y,grid[y][x]);
+  if(cur) for(let yy=0;yy<cur.m.length;yy++) for(let xx=0;xx<cur.m[yy].length;xx++)
+    if(cur.m[yy][xx]){ const ny=cur.y+yy, nx=cur.x+xx; if(ny>=0) drawCell(ctx,nx,ny,cur.c); } }
+function drawNext(){ nctx.fillStyle='#141821'; nctx.fillRect(0,0,nextC.width,nextC.height);
+  const s=SHAPES[next]; const m=s.m; const off=Math.floor((3-m[0].length)/2);
+  for(let y=0;y<m.length;y++) for(let x=0;x<m[y].length;x++) if(m[y][x]) drawCell(nctx,off+x+0.5,y+0.5,s.c,24); }
+function gameOver(){ over=true; clearInterval(timerId); statusEl.style.color='#ff8a8a';
+  statusEl.textContent='💥 游戏结束！点笑脸重开。'; faceEl.textContent='😵'; }
+
+function start(){ grid=newGrid(); score=0; lines=0; level=1; over=false;
+  faceEl.textContent='🙂'; statusEl.textContent='';
+  next=null; updateHud(); spawn(); setSpeed(); draw(); }
+
+document.addEventListener('keydown',e=>{ if(over&&e.key!==' ') return;
+  if(e.key==='ArrowLeft')move(-1); else if(e.key==='ArrowRight')move(1);
+  else if(e.key==='ArrowDown')softDrop(); else if(e.key==='ArrowUp'||e.key==='x'||e.key==='X')rotateCur();
+  else if(e.key===' '){ e.preventDefault(); hardDrop(); } });
+
+document.querySelectorAll('.ctrls button').forEach(b=>b.addEventListener('click',()=>{
+  const a=b.dataset.a; if(a==='left')move(-1); else if(a==='right')move(1);
+  else if(a==='rotate')rotateCur(); else if(a==='drop')hardDrop(); }));
+
+// 滑动控制
+let ts=null;
+board.addEventListener('touchstart',e=>{ const t=e.touches[0]; ts={x:t.clientX,y:t.clientY,t:Date.now()}; });
+board.addEventListener('touchend',e=>{ if(!ts) return; const t=e.changedTouches[0];
+  const dx=t.clientX-ts.x, dy=t.clientY-ts.y, dt=Date.now()-ts.t;
+  if(Math.abs(dx)<14 && Math.abs(dy)<14 && dt<220){ rotateCur(); }
+  else if(Math.abs(dx)>Math.abs(dy)){ dx>0?move(1):move(-1); }
+  else if(dy>0){ if(dy>60) hardDrop(); else softDrop(); }
+  ts=null; });
+
+faceEl.addEventListener('click', start);
+start();
+</script>
+</body></html>

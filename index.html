@@ -3,419 +3,48 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>扫雷 Minesweeper</title>
+<title>小游戏大厅 Mini Games</title>
 <style>
-  :root {
-    --bg: #1b1f2a;
-    --panel: #283041;
-    --cell: #3a4256;
-    --cell-hover: #454f66;
-    --revealed: #232936;
-    --line: #141821;
-    --text: #e8ecf5;
-    --accent: #ffb454;
-    --good: #4ec9b0;
-  }
+  :root { --bg:#1b1f2a; --panel:#283041; --line:#141821; --text:#e8ecf5; --accent:#ffb454; --good:#4ec9b0; }
   * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    min-height: 100vh;
-    background: radial-gradient(1200px 600px at 50% -10%, #232a3a, var(--bg));
-    color: var(--text);
-    font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 24px 12px 40px;
-  }
-  h1 {
-    font-size: 22px;
-    letter-spacing: 2px;
-    margin: 4px 0 2px;
-    font-weight: 700;
-  }
-  .sub { color: #8b94ab; font-size: 13px; margin-bottom: 16px; }
-  .difficulty { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; justify-content: center; }
-  .difficulty button {
-    background: var(--panel);
-    color: var(--text);
-    border: 1px solid #3a4256;
-    padding: 8px 16px;
-    border-radius: 10px;
-    cursor: pointer;
-    font-size: 14px;
-    transition: .15s;
-  }
-  .difficulty button:hover { background: var(--cell-hover); }
-  .difficulty button.active { background: var(--accent); color: #1b1f2a; border-color: var(--accent); font-weight: 700; }
-  .hud {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    background: var(--panel);
-    padding: 10px 14px;
-    border-radius: 12px;
-    margin-bottom: 12px;
-    box-shadow: 0 6px 18px rgba(0,0,0,.25);
-  }
-  .counter {
-    background: var(--line);
-    color: var(--accent);
-    font-family: "Courier New", monospace;
-    font-size: 22px;
-    font-weight: 700;
-    padding: 4px 10px;
-    border-radius: 8px;
-    min-width: 64px;
-    text-align: center;
-    letter-spacing: 2px;
-  }
-  .face {
-    width: 46px; height: 46px;
-    border-radius: 50%;
-    border: none;
-    background: var(--accent);
-    color: #1b1f2a;
-    font-size: 24px;
-    cursor: pointer;
-    transition: .12s;
-  }
-  .face:hover { transform: scale(1.06); }
-  .face:active { transform: scale(.94); }
-  #board {
-    display: grid;
-    gap: 3px;
-    background: var(--line);
-    padding: 6px;
-    border-radius: 10px;
-    box-shadow: 0 10px 30px rgba(0,0,0,.35);
-    touch-action: manipulation;
-  }
-  .cell {
-    width: 30px; height: 30px;
-    background: var(--cell);
-    border: none;
-    border-radius: 5px;
-    color: #fff;
-    font-size: 16px;
-    font-weight: 800;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    user-select: none;
-    transition: background .08s;
-  }
-  .cell:hover:not(.revealed) { background: var(--cell-hover); }
-  .cell.revealed {
-    background: var(--revealed);
-    cursor: default;
-    box-shadow: inset 0 0 0 1px #2b3142;
-  }
-  .cell.flag { color: var(--accent); }
-  .cell.mine { background: #c0392b; }
-  .cell.wrong { background: #7a3b3b; }
-  .cell.c1 { color: #5b9cff; }
-  .cell.c2 { color: #4ec9b0; }
-  .cell.c3 { color: #ff8a8a; }
-  .cell.c4 { color: #c08bff; }
-  .cell.c5 { color: #ffb454; }
-  .cell.c6 { color: #6ee7ff; }
-  .cell.c7 { color: #ff7ad9; }
-  .cell.c8 { color: #c0c7d6; }
-  .status {
-    margin-top: 14px;
-    min-height: 22px;
-    font-size: 15px;
-    color: var(--good);
-    font-weight: 600;
-  }
-  .tips {
-    margin-top: 18px;
-    max-width: 460px;
-    font-size: 13px;
-    color: #8b94ab;
-    line-height: 1.7;
-    text-align: center;
-  }
-  .tips b { color: var(--text); }
+  body { margin:0; min-height:100vh; background:radial-gradient(1200px 600px at 50% -10%, #232a3a, var(--bg));
+    color:var(--text); font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    display:flex; flex-direction:column; align-items:center; padding:32px 16px 48px; }
+  h1 { font-size:26px; letter-spacing:3px; margin:0 0 4px; }
+  .sub { color:#8b94ab; font-size:14px; margin-bottom:28px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:16px; width:100%; max-width:560px; }
+  .card { background:var(--panel); border:1px solid #3a4256; border-radius:16px; padding:22px 16px; text-align:center;
+    text-decoration:none; color:var(--text); transition:.15s; display:flex; flex-direction:column; align-items:center; gap:10px; }
+  .card:hover { transform:translateY(-4px); border-color:var(--accent); box-shadow:0 12px 28px rgba(0,0,0,.35); }
+  .card .ico { font-size:46px; }
+  .card .name { font-size:17px; font-weight:700; }
+  .card .desc { font-size:12px; color:#8b94ab; line-height:1.6; min-height:32px; }
+  .card .play { margin-top:6px; background:var(--accent); color:#1b1f2a; font-weight:700; padding:8px 20px; border-radius:10px; font-size:14px; }
+  .foot { margin-top:32px; color:#5b6276; font-size:12px; text-align:center; line-height:1.7; }
 </style>
 </head>
 <body>
-  <h1>💣 扫雷 MINESWEEPER</h1>
-  <div class="sub">首点必安全 · 三档难度 · 左键挖开 / 右键插旗 / 点数字快开</div>
-
-  <div class="difficulty" id="difficulty">
-    <button data-d="easy" class="active">初级 9×9</button>
-    <button data-d="medium">中级 16×16</button>
-    <button data-d="hard">高级 16×30</button>
+  <h1>🎮 小游戏大厅</h1>
+  <div class="sub">单文件 · 即点即玩 · 手机电脑通用</div>
+  <div class="grid">
+    <a class="card" href="扫雷.html">
+      <div class="ico">💣</div>
+      <div class="name">扫雷</div>
+      <div class="desc">三档难度 · 首点保护 · 插旗 · 和弦快开</div>
+      <div class="play">开始 ▸</div>
+    </a>
+    <a class="card" href="tetris.html">
+      <div class="ico">🧱</div>
+      <div class="name">俄罗斯方块</div>
+      <div class="desc">7 种方块 · 消行计分 · 带触屏按钮</div>
+      <div class="play">开始 ▸</div>
+    </a>
+    <a class="card" href="breakout.html">
+      <div class="ico">🟧</div>
+      <div class="name">打砖块</div>
+      <div class="desc">手指拖动挡板 · 多关卡 · 计分闯关</div>
+      <div class="play">开始 ▸</div>
+    </a>
   </div>
-
-  <div class="hud">
-    <div class="counter" id="mineCount">010</div>
-    <button class="face" id="face" title="重新开始">🙂</button>
-    <div class="counter" id="timer">000</div>
-  </div>
-
-  <div id="board"></div>
-  <div class="status" id="status"></div>
-
-  <div class="tips">
-    <b>玩法：</b>左键挖开格子，右键插旗标记地雷。数字表示周围 8 格里有几颗雷。
-    在已翻开的数字上<b>再点一下</b>（或左键+右键同时按），若周围旗数等于该数字，会自动翻开其余格子（和弦快开）。
-    把所有非雷格子翻开即获胜，踩到雷即失败。
-  </div>
-
-<script>
-const LEVELS = {
-  easy:   { rows: 9,  cols: 9,  mines: 10 },
-  medium: { rows: 16, cols: 16, mines: 40 },
-  hard:   { rows: 16, cols: 30, mines: 99 },
-};
-
-let cfg = LEVELS.easy;
-let grid = [];          // 每格: {mine, revealed, flagged, adj}
-let firstClick = true;
-let gameOver = false;
-let won = false;
-let flagsUsed = 0;
-let revealedCount = 0;
-let timer = 0;
-let timerId = null;
-let startedAt = 0;
-
-const boardEl = document.getElementById('board');
-const mineCountEl = document.getElementById('mineCount');
-const timerEl = document.getElementById('timer');
-const faceEl = document.getElementById('face');
-const statusEl = document.getElementById('status');
-const difficultyEl = document.getElementById('difficulty');
-
-function pad(n) { return String(Math.max(-99, Math.min(999, n))).padStart(3, '0'); }
-
-function startTimer() {
-  if (timerId) return;
-  startedAt = Date.now();
-  timerId = setInterval(() => {
-    timer = Math.floor((Date.now() - startedAt) / 1000);
-    timerEl.textContent = pad(timer);
-  }, 250);
-}
-function stopTimer() { clearInterval(timerId); timerId = null; }
-
-function newGame() {
-  firstClick = true;
-  gameOver = false;
-  won = false;
-  flagsUsed = 0;
-  revealedCount = 0;
-  timer = 0;
-  stopTimer();
-  timerEl.textContent = '000';
-  faceEl.textContent = '🙂';
-  statusEl.textContent = '';
-  mineCountEl.textContent = pad(cfg.mines);
-
-  grid = [];
-  boardEl.innerHTML = '';
-  boardEl.style.gridTemplateColumns = `repeat(${cfg.cols}, 30px)`;
-
-  for (let r = 0; r < cfg.rows; r++) {
-    const row = [];
-    for (let c = 0; c < cfg.cols; c++) {
-      const cell = { mine: false, revealed: false, flagged: false, adj: 0 };
-      row.push(cell);
-      const el = document.createElement('div');
-      el.className = 'cell';
-      el.dataset.r = r;
-      el.dataset.c = c;
-      boardEl.appendChild(el);
-    }
-    grid.push(row);
-  }
-}
-
-function placeMines(safeR, safeC) {
-  // 首点保护：以首点为中心的 3x3 不放雷
-  const forbidden = new Set();
-  for (let dr = -1; dr <= 1; dr++)
-    for (let dc = -1; dc <= 1; dc++) {
-      const nr = safeR + dr, nc = safeC + dc;
-      if (nr >= 0 && nr < cfg.rows && nc >= 0 && nc < cfg.cols) forbidden.add(nr + ',' + nc);
-    }
-  let placed = 0;
-  while (placed < cfg.mines) {
-    const r = Math.floor(Math.random() * cfg.rows);
-    const c = Math.floor(Math.random() * cfg.cols);
-    if (forbidden.has(r + ',' + c)) continue;
-    if (grid[r][c].mine) continue;
-    grid[r][c].mine = true;
-    placed++;
-  }
-  // 计算相邻雷数
-  for (let r = 0; r < cfg.rows; r++)
-    for (let c = 0; c < cfg.cols; c++) {
-      if (grid[r][c].mine) continue;
-      let n = 0;
-      forEachNeighbor(r, c, (nr, nc) => { if (grid[nr][nc].mine) n++; });
-      grid[r][c].adj = n;
-    }
-}
-
-function forEachNeighbor(r, c, fn) {
-  for (let dr = -1; dr <= 1; dr++)
-    for (let dc = -1; dc <= 1; dc++) {
-      if (dr === 0 && dc === 0) continue;
-      const nr = r + dr, nc = c + dc;
-      if (nr >= 0 && nr < cfg.rows && nc >= 0 && nc < cfg.cols) fn(nr, nc);
-    }
-}
-
-function elAt(r, c) {
-  return boardEl.children[r * cfg.cols + c];
-}
-
-function reveal(r, c) {
-  const cell = grid[r][c];
-  if (cell.revealed || cell.flagged) return;
-  cell.revealed = true;
-  revealedCount++;
-  const el = elAt(r, c);
-  el.classList.add('revealed');
-  if (cell.mine) {
-    el.classList.add('mine');
-    el.textContent = '💣';
-    return;
-  }
-  if (cell.adj > 0) {
-    el.textContent = cell.adj;
-    el.classList.add('c' + cell.adj);
-  } else {
-    // 洪水填充
-    forEachNeighbor(r, c, (nr, nc) => reveal(nr, nc));
-  }
-}
-
-function chord(r, c) {
-  const cell = grid[r][c];
-  if (!cell.revealed || cell.adj === 0) return;
-  let flags = 0;
-  forEachNeighbor(r, c, (nr, nc) => { if (grid[nr][nc].flagged) flags++; });
-  if (flags !== cell.adj) return;
-  forEachNeighbor(r, c, (nr, nc) => {
-    if (!grid[nr][nc].flagged && !grid[nr][nc].revealed) reveal(nr, nc);
-  });
-}
-
-function checkWin() {
-  if (revealedCount === cfg.rows * cfg.cols - cfg.mines) {
-    won = true;
-    gameOver = true;
-    stopTimer();
-    faceEl.textContent = '😎';
-    statusEl.style.color = 'var(--good)';
-    statusEl.textContent = `🎉 胜利！用时 ${timer} 秒，雷已全部标出。`;
-    // 自动给剩余雷插旗
-    for (let r = 0; r < cfg.rows; r++)
-      for (let c = 0; c < cfg.cols; c++)
-        if (grid[r][c].mine && !grid[r][c].flagged) {
-          grid[r][c].flagged = true;
-          const el = elAt(r, c);
-          el.classList.add('flag');
-          el.textContent = '🚩';
-        }
-    flagsUsed = cfg.mines;
-    mineCountEl.textContent = pad(0);
-  }
-}
-
-function lose(r, c) {
-  gameOver = true;
-  stopTimer();
-  faceEl.textContent = '😵';
-  statusEl.style.color = '#ff8a8a';
-  statusEl.textContent = '💥 踩到雷了！点笑脸再来一局。';
-  // 显示所有雷，标错的旗
-  for (let rr = 0; rr < cfg.rows; rr++)
-    for (let cc = 0; cc < cfg.cols; cc++) {
-      const cell = grid[rr][cc];
-      const el = elAt(rr, cc);
-      if (cell.mine && !cell.flagged) {
-        el.classList.add('revealed', 'mine');
-        el.textContent = '💣';
-      } else if (!cell.mine && cell.flagged) {
-        el.classList.add('wrong');
-        el.textContent = '❌';
-      }
-    }
-}
-
-function handleLeftClick(r, c) {
-  if (gameOver) return;
-  const cell = grid[r][c];
-  if (cell.flagged) return;
-  if (firstClick) {
-    placeMines(r, c);
-    firstClick = false;
-    startTimer();
-  }
-  if (cell.revealed) { chord(r, c); }   // 和弦快开
-  else { reveal(r, c); }
-
-  if (cell.mine && cell.revealed) { lose(r, c); return; }
-  checkWin();
-}
-
-function handleRightClick(r, c) {
-  if (gameOver) return;
-  const cell = grid[r][c];
-  if (cell.revealed) return;
-  cell.flagged = !cell.flagged;
-  const el = elAt(r, c);
-  if (cell.flagged) {
-    el.classList.add('flag');
-    el.textContent = '🚩';
-    flagsUsed++;
-  } else {
-    el.classList.remove('flag');
-    el.textContent = '';
-    flagsUsed--;
-  }
-  mineCountEl.textContent = pad(cfg.mines - flagsUsed);
-}
-
-// 事件委托
-boardEl.addEventListener('click', (e) => {
-  const t = e.target.closest('.cell');
-  if (!t) return;
-  handleLeftClick(+t.dataset.r, +t.dataset.c);
-});
-boardEl.addEventListener('contextmenu', (e) => {
-  e.preventDefault();
-  const t = e.target.closest('.cell');
-  if (!t) return;
-  handleRightClick(+t.dataset.r, +t.dataset.c);
-});
-// 和弦：左键+右键同时按（部分鼠标/触控板）
-boardEl.addEventListener('dblclick', (e) => {
-  const t = e.target.closest('.cell');
-  if (!t) return;
-  chord(+t.dataset.r, +t.dataset.c);
-});
-
-faceEl.addEventListener('click', newGame);
-
-difficultyEl.addEventListener('click', (e) => {
-  const btn = e.target.closest('button');
-  if (!btn) return;
-  [...difficultyEl.children].forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  cfg = LEVELS[btn.dataset.d];
-  newGame();
-});
-
-newGame();
-</script>
-</body>
-</html>
+  <div class="foot">仓库：github.com/phw2077/minesweeper · 后续还会加入更多游戏</div>
+</body></html>
