@@ -20,6 +20,6 @@
 
 已开启 GitHub Pages，可在线访问：
 
-https://phw2077.github.io/minesweeper/
+https://hovey233.github.io/mini-games/
 
-> 仓库目前仍沿用早期名称 `minesweeper`，后续如需更名可改为 `mini-games`（仅影响地址与仓库显示，不影响游戏本身）。
+> 仓库已更名为 `mini-games`，当前用户名为 `hovey233`。
