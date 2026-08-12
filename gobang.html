@@ -32,18 +32,20 @@
     <div class="box"><div class="k">模式</div><div class="v" id="modeLabel">人机</div></div>
     <div class="box"><div class="k">回合</div><div class="v" id="turn">黑棋</div></div>
     <button class="modebtn" id="modeBtn">切换 双人/人机</button>
+    <div class="box"><div class="k">胜场</div><div class="v" id="wins">0</div></div>
   </div>
   <canvas id="board" width="540" height="540"></canvas>
   <button class="face" id="face" title="重开">🙂</button>
   <div class="status" id="status">你执黑先手，点击落子</div>
   <div class="tips">人机：你执黑，AI 执白。双人：轮流落子。<br>手机：直接点棋盘交叉点。</div>
 
+<script src="scores.js"></script>
 <script>
 const SIZE=540, GRID=15, PAD=32, GAP=(SIZE-2*PAD)/(GRID-1);
 const canvas=document.getElementById('board'), ctx=canvas.getContext('2d');
 const statusEl=document.getElementById('status'), turnEl=document.getElementById('turn'),
       modeLabelEl=document.getElementById('modeLabel'), modeBtn=document.getElementById('modeBtn'),
-      faceEl=document.getElementById('face');
+      faceEl=document.getElementById('face'), winsEl=document.getElementById('wins');
 
 let board, current, mode='pve', gameOver=false, aiThinking=false;
 
@@ -53,6 +55,7 @@ function init(){
   modeLabelEl.textContent = mode==='pve'?'人机':'双人';
   turnEl.textContent = current===1?'黑棋':'白棋';
   statusEl.textContent = mode==='pve' ? '你执黑先手，点击落子' : '黑棋先手';
+  winsEl.textContent=MG.get('gobang').clears;
   draw();
 }
 
@@ -135,6 +138,7 @@ function endGame(winner){
   gameOver=true;
   if(winner===1){ statusEl.textContent = mode==='pve'?'🎉 你赢了！':'⚫ 黑棋胜利！'; faceEl.textContent='😎'; }
   else { statusEl.textContent = mode==='pve'?'🤖 AI 获胜':'⚪ 白棋胜利！'; faceEl.textContent='😵'; }
+  const rec=MG.record('gobang', 0, true); winsEl.textContent=rec.clears;
 }
 
 function pattern(line,open){

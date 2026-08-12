@@ -21,6 +21,12 @@
   .card .desc { font-size:12px; color:#8b94ab; line-height:1.6; min-height:32px; }
   .card .play { margin-top:6px; background:var(--accent); color:#1b1f2a; font-weight:700; padding:8px 20px; border-radius:10px; font-size:14px; }
   .foot { margin-top:32px; color:#5b6276; font-size:12px; text-align:center; line-height:1.7; }
+  .scores { width:100%; max-width:560px; margin-top:30px; }
+  .scores h2 { font-size:16px; color:#8b94ab; font-weight:600; margin:0 0 12px; text-align:center; }
+  .score-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:8px; }
+  .score-row { background:var(--panel); border:1px solid #3a4256; border-radius:10px; padding:10px 14px; display:flex; justify-content:space-between; font-size:13px; }
+  .score-row .s-name { color:var(--text); }
+  .score-row .s-val { color:#8b94ab; }
 </style>
 </head>
 <body>
@@ -57,6 +63,18 @@
       <div class="desc">躲弹幕 · 击落敌机 · 闯关计分</div>
       <div class="play">开始 ▸</div>
     </a>
+    <a class="card" href="sokoban.html">
+      <div class="ico">📦</div>
+      <div class="name">推箱子</div>
+      <div class="desc">推箱入位 · 多关卡 · 步数挑战</div>
+      <div class="play">开始 ▸</div>
+    </a>
   </div>
-  <div class="foot">现已收录 5 款小游戏 · 仓库：github.com/hovey233/mini-games</div>
+  <div class="scores">
+    <h2>📊 我的成绩</h2>
+    <div id="board"></div>
+  </div>
+  <div class="foot">现已收录 6 款小游戏 · 仓库：github.com/hovey233/mini-games</div>
+<script src="scores.js"></script>
+<script> MG.renderBoard(document.getElementById('board')); </script>
 </body></html>

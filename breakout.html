@@ -28,16 +28,18 @@
     <div class="box"><div class="k">分数</div><div class="v" id="score">0</div></div>
     <div class="box"><div class="k">关卡</div><div class="v" id="level">1</div></div>
     <div class="box"><div class="k">生命</div><div class="v" id="lives">3</div></div>
+    <div class="box"><div class="k">最高分</div><div class="v" id="best">0</div></div>
   </div>
   <canvas id="cv" width="400" height="560"></canvas>
   <button class="face" id="face" title="重开">🙂</button>
   <div class="status" id="status">点击/触摸屏幕发射小球</div>
   <div class="tips">电脑：移动鼠标控制挡板。手机：手指左右拖动挡板。<br>接住小球打掉全部砖块进入下一关，球掉落扣一条命。</div>
 
+<script src="scores.js"></script>
 <script>
 const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
 const scoreEl=document.getElementById('score'), levelEl=document.getElementById('level'),
-      livesEl=document.getElementById('lives'), statusEl=document.getElementById('status'), faceEl=document.getElementById('face');
+      livesEl=document.getElementById('lives'), statusEl=document.getElementById('status'), faceEl=document.getElementById('face'), bestEl=document.getElementById('best');
 const W=cv.width, H=cv.height;
 const PCOLORS=['#ff8a8a','#ffb454','#4ec9b0','#6ee7ff','#c08bff'];
 
@@ -62,7 +64,7 @@ function loop(){ if(!running) return;
       ball.y=paddle.y-ball.r; const hit=(ball.x-(paddle.x+paddle.w/2))/(paddle.w/2);
       ball.dx=ball.sp*hit; ball.dy=-Math.abs(ball.dy); }
     if(ball.y-ball.r>H){ lives--; updateHud();
-      if(lives<=0){ running=false; statusEl.style.color='#ff8a8a'; statusEl.textContent='💥 游戏结束，点笑脸重开'; faceEl.textContent='😵'; return; }
+      if(lives<=0){ running=false; statusEl.style.color='#ff8a8a'; statusEl.textContent='💥 游戏结束，点笑脸重开'; faceEl.textContent='😵'; const rec=MG.record('breakout', score, false); bestEl.textContent=rec.bestScore; return; }
       ball.x=W/2; ball.y=H-40; ball.dx=ball.sp*(Math.random()<.5?-1:1); ball.dy=-ball.sp; launched=false; statusEl.textContent='点击/触摸发射小球'; }
   }
   for(const b of bricks){ if(b.on && ball.x+ball.r>b.x && ball.x-ball.r<b.x+b.w && ball.y+ball.r>b.y && ball.y-ball.r<b.y+b.h){
@@ -86,7 +88,7 @@ cv.addEventListener('mousemove',pointer);
 cv.addEventListener('touchmove',e=>{ e.preventDefault(); pointer(e); },{passive:false});
 cv.addEventListener('mousedown',launch); cv.addEventListener('touchstart',e=>{ e.preventDefault(); launch(); pointer(e); },{passive:false});
 
-function start(){ cancelAnimationFrame(raf); faceEl.textContent='🙂'; statusEl.style.color='var(--good)'; reset(); draw(); raf=requestAnimationFrame(loop); }
+function start(){ cancelAnimationFrame(raf); faceEl.textContent='🙂'; statusEl.style.color='var(--good)'; reset(); bestEl.textContent=MG.get('breakout').bestScore; draw(); raf=requestAnimationFrame(loop); }
 faceEl.addEventListener('click', start);
 start();
 </script>

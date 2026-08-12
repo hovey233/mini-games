@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>推箱子 Sokoban</title>
+<style>
+  :root { --bg:#1b1f2a; --panel:#283041; --line:#141821; --text:#e8ecf5; --accent:#ffb454; --good:#4ec9b0; }
+  * { box-sizing: border-box; }
+  body { margin:0; min-height:100vh; background:radial-gradient(1200px 600px at 50% -10%, #232a3a, var(--bg));
+    color:var(--text); font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    display:flex; flex-direction:column; align-items:center; padding:16px; }
+  .top { width:100%; max-width:560px; display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+  .home { color:var(--accent); text-decoration:none; font-weight:700; }
+  h1 { font-size:20px; letter-spacing:2px; margin:0; }
+  .bar { width:100%; max-width:560px; display:flex; justify-content:space-between; align-items:center;
+    background:var(--panel); border:1px solid #3a4256; border-radius:12px; padding:10px 14px; margin-bottom:14px; font-size:14px; }
+  .bar b { color:var(--accent); }
+  .stage { position:relative; }
+  .board { display:grid; gap:2px; background:var(--line); padding:6px; border-radius:10px; }
+  .cell { width:38px; height:38px; position:relative; border-radius:4px; }
+  .wall { background:#0f1320; }
+  .floor { background:#2f3850; }
+  .target::after { content:""; position:absolute; inset:12px; border-radius:50%; border:2px solid var(--accent); }
+  .box { position:absolute; inset:5px; background:linear-gradient(135deg,#caa15a,#9c7530); border-radius:6px; box-shadow:inset 0 0 0 2px #6e5320; }
+  .player { position:absolute; inset:9px; background:var(--good); border-radius:50%; box-shadow:0 0 8px rgba(78,201,176,.6); }
+  .overlay { position:absolute; inset:0; background:rgba(15,19,32,.92); border-radius:10px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; padding:20px; text-align:center; }
+  .overlay h2 { margin:0; font-size:22px; color:var(--accent); }
+  .overlay p { margin:0; color:#bcc6dd; font-size:14px; }
+  .btn { background:var(--accent); color:#1b1f2a; border:none; font-weight:700; padding:10px 22px; border-radius:10px; font-size:15px; cursor:pointer; }
+  .pad { margin-top:18px; display:grid; grid-template-columns:repeat(3,64px); grid-template-rows:repeat(3,64px); gap:8px; }
+  .pad button { background:var(--panel); border:1px solid #3a4256; color:var(--text); font-size:24px; border-radius:12px; cursor:pointer; }
+  .pad button:active { background:var(--accent); color:#1b1f2a; }
+  .pad .empty { visibility:hidden; }
+  .tools { margin-top:14px; display:flex; gap:10px; }
+  .tools button { background:transparent; border:1px solid #3a4256; color:#8b94ab; padding:6px 14px; border-radius:8px; cursor:pointer; font-size:13px; }
+</style>
+</head>
+<body>
+  <div class="top">
+    <a class="home" href="index.html">🏠 大厅</a>
+    <h1>📦 推箱子</h1>
+    <span style="width:48px"></span>
+  </div>
+  <div class="bar">
+    <span>第 <b id="lv">1</b> / <span id="lvTotal">5</span> 关 · 步数 <b id="mv">0</b></span>
+    <span>最佳：<b id="best">尚未通关</b></span>
+  </div>
+
+  <div class="stage">
+    <div class="board" id="board"></div>
+    <div class="overlay" id="overlay" style="display:none">
+      <h2 id="ovTitle">过关！</h2>
+      <p id="ovText"></p>
+      <button class="btn" id="ovBtn">下一关 ▸</button>
+    </div>
+  </div>
+
+  <div class="pad">
+    <span class="empty"></span>
+    <button data-dir="up">▲</button>
+    <span class="empty"></span>
+    <button data-dir="left">◀</button>
+    <span class="empty"></span>
+    <button data-dir="right">▶</button>
+    <span class="empty"></span>
+    <button data-dir="down">▼</button>
+    <span class="empty"></span>
+  </div>
+
+  <div class="tools">
+    <button id="restart">↺ 重玩本关</button>
+    <button id="resetAll">清空成绩</button>
+  </div>
+
+<script src="scores.js"></script>
+<script>
+  const LEVELS = [
+    [ "########",
+      "#      #",
+      "# @$.  #",
+      "#      #",
+      "########" ],
+    [ "########",
+      "#@     #",
+      "#      #",
+      "# $ .  #",
+      "#      #",
+      "########" ],
+    [ "########",
+      "#.    .#",
+      "# $  $ #",
+      "#  @   #",
+      "########" ],
+    [ "########",
+      "#...   #",
+      "#$$$   #",
+      "#  @   #",
+      "########" ],
+    [ "########",
+      "#   #  #",
+      "# $ #  #",
+      "# @ #  #",
+      "# .    #",
+      "########" ]
+  ];
+
+  const boardEl = document.getElementById('board');
+  const lvEl = document.getElementById('lv');
+  const mvEl = document.getElementById('mv');
+  const bestEl = document.getElementById('best');
+  const overlay = document.getElementById('overlay');
+  const ovTitle = document.getElementById('ovTitle');
+  const ovText = document.getElementById('ovText');
+  const ovBtn = document.getElementById('ovBtn');
+
+  let levelIndex = 0, grid = [], targets = new Set(), boxes = new Set(), player = null, moves = 0, won = false;
+
+  function parse(rows) {
+    grid = []; targets = new Set(); boxes = new Set(); player = null;
+    let W = 0;
+    for (let y = 0; y < rows.length; y++) {
+      const line = rows[y]; W = Math.max(W, line.length);
+      const r = [];
+      for (let x = 0; x < line.length; x++) {
+        const ch = line[x];
+        r.push(ch === '#' ? '#' : ' ');
+        if (ch === '.' || ch === '*' || ch === '+') targets.add(x + ',' + y);
+        if (ch === '$' || ch === '*') boxes.add(x + ',' + y);
+        if (ch === '@' || ch === '+') player = { x, y };
+      }
+      grid.push(r);
+    }
+    return W;
+  }
+
+  function loadLevel(i) {
+    levelIndex = i; moves = 0; won = false;
+    const W = parse(LEVELS[i]);
+    boardEl.style.gridTemplateColumns = 'repeat(' + W + ', 38px)';
+    lvEl.textContent = i + 1;
+    mvEl.textContent = 0;
+    overlay.style.display = 'none';
+    render();
+  }
+
+  function isWall(x, y) {
+    if (y < 0 || y >= grid.length || x < 0 || x >= (grid[y] ? grid[y].length : 0)) return true;
+    return grid[y][x] === '#';
+  }
+  function hasBox(x, y) { return boxes.has(x + ',' + y); }
+
+  function move(dx, dy) {
+    if (won) return;
+    const nx = player.x + dx, ny = player.y + dy;
+    if (isWall(nx, ny)) return;
+    if (hasBox(nx, ny)) {
+      const bx = nx + dx, by = ny + dy;
+      if (isWall(bx, by) || hasBox(bx, by)) return;
+      boxes.delete(nx + ',' + ny); boxes.add(bx + ',' + by);
+    }
+    player = { x: nx, y: ny }; moves++;
+    mvEl.textContent = moves;
+    render();
+    if (isWin()) onWin();
+  }
+
+  function isWin() {
+    for (const t of targets) if (!boxes.has(t)) return false;
+    return true;
+  }
+
+  function onWin() {
+    won = true;
+    // 记录成绩：最高通关关卡
+    const reached = levelIndex + 1;
+    const rec = MG.record('sokoban', reached, false);
+    bestEl.textContent = '第 ' + rec.bestScore + ' 关';
+    if (levelIndex + 1 >= LEVELS.length) {
+      ovTitle.textContent = '🎉 全部通关！';
+      ovText.textContent = '你推完了全部 ' + LEVELS.length + ' 关，最佳进度已保存。';
+      ovBtn.textContent = '再玩一次';
+      ovBtn.onclick = () => loadLevel(0);
+    } else {
+      ovTitle.textContent = '过关！';
+      ovText.textContent = '本关用了 ' + moves + ' 步。';
+      ovBtn.textContent = '下一关 ▸';
+      ovBtn.onclick = () => loadLevel(levelIndex + 1);
+    }
+    overlay.style.display = 'flex';
+  }
+
+  function render() {
+    let h = '';
+    for (let y = 0; y < grid.length; y++) {
+      for (let x = 0; x < grid[y].length; x++) {
+        let cls = 'cell ';
+        if (grid[y][x] === '#') cls += 'wall';
+        else { cls += 'floor'; if (targets.has(x + ',' + y)) cls += ' target'; }
+        let inner = '';
+        if (boxes.has(x + ',' + y)) inner = '<div class="box"></div>';
+        if (player && player.x === x && player.y === y) inner = '<div class="player"></div>';
+        h += '<div class="' + cls + '">' + inner + '</div>';
+      }
+    }
+    boardEl.innerHTML = h;
+  }
+
+  function refreshBest() {
+    const s = MG.get('sokoban');
+    bestEl.textContent = s.bestScore > 0 ? ('第 ' + s.bestScore + ' 关') : '尚未通关';
+  }
+
+  // 键盘
+  document.addEventListener('keydown', (e) => {
+    const k = e.key.toLowerCase();
+    if (k === 'arrowup' || k === 'w') { move(0, -1); e.preventDefault(); }
+    else if (k === 'arrowdown' || k === 's') { move(0, 1); e.preventDefault(); }
+    else if (k === 'arrowleft' || k === 'a') { move(-1, 0); e.preventDefault(); }
+    else if (k === 'arrowright' || k === 'd') { move(1, 0); e.preventDefault(); }
+  });
+  // 触屏方向
+  document.querySelectorAll('.pad button').forEach(b => {
+    b.addEventListener('click', () => {
+      const d = b.dataset.dir;
+      if (d === 'up') move(0, -1); else if (d === 'down') move(0, 1);
+      else if (d === 'left') move(-1, 0); else if (d === 'right') move(1, 0);
+    });
+  });
+  document.getElementById('restart').onclick = () => loadLevel(levelIndex);
+  document.getElementById('resetAll').onclick = () => {
+    MG.save({}); refreshBest(); loadLevel(0);
+  };
+
+  document.getElementById('lvTotal').textContent = LEVELS.length;
+  refreshBest();
+  loadLevel(0);
+</script>
+</body></html>
