@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>飞机大战 Plane War</title>
+<style>
+  :root { --bg:#1b1f2a; --panel:#283041; --line:#141821; --text:#e8ecf5; --accent:#ffb454; --good:#4ec9b0; }
+  * { box-sizing: border-box; }
+  body { margin:0; min-height:100vh; background:radial-gradient(1200px 600px at 50% -10%, #232a3a, var(--bg));
+    color:var(--text); font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    display:flex; flex-direction:column; align-items:center; padding:18px 12px 36px; }
+  h1 { font-size:20px; letter-spacing:2px; margin:2px 0 12px; }
+  .hud { display:flex; gap:10px; justify-content:center; margin-bottom:10px; }
+  .box { background:var(--line); border-radius:10px; padding:6px 14px; text-align:center; min-width:70px; }
+  .box .k { font-size:11px; color:#8b94ab; } .box .v { font-size:18px; font-weight:700; color:var(--accent); }
+  #cv { background:#0e1320; border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,.35); touch-action:none;
+    display:block; width:min(92vw,400px); height:auto; aspect-ratio:400/600; }
+  .face { margin-top:12px; width:46px; height:46px; border-radius:50%; border:none; background:var(--accent);
+    color:#1b1f2a; font-size:22px; cursor:pointer; }
+  .status { min-height:20px; margin-top:12px; color:var(--good); font-weight:600; text-align:center; }
+  .tips { color:#8b94ab; font-size:12px; margin-top:10px; max-width:340px; text-align:center; line-height:1.7; }
+</style>
+</head>
+<body>
+  <a href="index.html" style="position:fixed;top:10px;left:12px;z-index:50;background:#283041;color:#e8ecf5;text-decoration:none;padding:6px 12px;border-radius:10px;font-size:13px;border:1px solid #3a4256;">🏠 大厅</a>
+  <h1>🚀 飞机大战 PLANE WAR</h1>
+  <div class="hud">
+    <div class="box"><div class="k">分数</div><div class="v" id="score">0</div></div>
+    <div class="box"><div class="k">关卡</div><div class="v" id="level">1</div></div>
+    <div class="box"><div class="k">生命</div><div class="v" id="lives">3</div></div>
+  </div>
+  <canvas id="cv" width="400" height="600"></canvas>
+  <button class="face" id="face" title="重开">🙂</button>
+  <div class="status" id="status">点击屏幕开始</div>
+  <div class="tips">电脑：← → 移动，自动开火。手机：手指左右拖动控制飞机。<br>击落敌机得分，被撞或漏怪扣血，归零游戏结束。</div>
+
+<script>
+const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+const scoreEl=document.getElementById('score'), levelEl=document.getElementById('level'),
+      livesEl=document.getElementById('lives'), statusEl=document.getElementById('status'),
+      faceEl=document.getElementById('face');
+const W=cv.width, H=cv.height;
+const COLORS=['#ff8a8a','#ffb454','#4ec9b0','#6ee7ff','#c08bff'];
+
+let player, bullets, enemies, stars, score, level, lives, started, gameOver, fireTick, spawnTick, keys;
+
+function reset(){
+  player={x:W/2-18, y:H-60, w:36, h:34, speed:6};
+  bullets=[]; enemies=[]; score=0; level=1; lives=3;
+  fireTick=0; spawnTick=0; started=false; gameOver=false; keys={};
+  stars=[]; for(let i=0;i<70;i++) stars.push({x:Math.random()*W, y:Math.random()*H, r:Math.random()*1.6+0.4, s:Math.random()*1.2+0.3});
+  updateHud(); statusEl.textContent='点击屏幕开始'; faceEl.textContent='🙂';
+}
+function updateHud(){ scoreEl.textContent=score; levelEl.textContent=level; livesEl.textContent=lives; }
+
+function start(){ if(started||gameOver) return; started=true; statusEl.textContent=''; }
+
+function spawnEnemy(){
+  const w=26+Math.random()*14, h=24+Math.random()*12;
+  const sp=1.6+level*0.35+Math.random()*1.2;
+  enemies.push({x:Math.random()*(W-w), y:-h, w, h, vy:sp, c:COLORS[(Math.random()*COLORS.length)|0], hp:1+(level>3&&Math.random()<.3?1:0)});
+}
+
+function fire(){
+  bullets.push({x:player.x+player.w/2-2, y:player.y, w:4, h:10, vy:-9});
+}
+
+function rectHit(a,b){ return a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y; }
+
+function update(){
+  // stars
+  for(const s of stars){ s.y+=s.s; if(s.y>H){ s.y=0; s.x=Math.random()*W; } }
+  if(!started||gameOver) return;
+
+  // move player (keyboard)
+  if(keys['ArrowLeft']||keys['a']) player.x-=player.speed;
+  if(keys['ArrowRight']||keys['d']) player.x+=player.speed;
+  if(player.x<0) player.x=0; if(player.x+player.w>W) player.x=W-player.w;
+
+  // fire
+  fireTick++; if(fireTick>=10){ fireTick=0; fire(); }
+
+  // bullets
+  for(const b of bullets) b.y+=b.vy;
+  bullets=bullets.filter(b=>b.y+b.h>0);
+
+  // spawn
+  spawnTick++; const interval=Math.max(18,46-level*4);
+  if(spawnTick>=interval){ spawnTick=0; spawnEnemy(); }
+
+  // enemies
+  for(const e of enemies) e.y+=e.vy;
+  // collisions
+  for(const e of enemies){
+    for(const b of bullets){
+      if(b.dead||e.dead) continue;
+      if(rectHit(b,e)){ b.dead=true; e.hp--; if(e.hp<=0){ e.dead=true; score+=10*level; } }
+    }
+  }
+  for(const e of enemies){
+    if(e.dead) continue;
+    if(rectHit(e,player)){ e.dead=true; loseLife(); }
+    else if(e.y> H){ e.dead=true; loseLife(); }
+  }
+  bullets=bullets.filter(b=>!b.dead);
+  enemies=enemies.filter(e=>!e.dead);
+
+  if(score>=level*200) level++;
+  updateHud();
+}
+
+function loseLife(){
+  lives--; updateHud();
+  if(lives<=0){ gameOver=true; statusEl.textContent='💥 游戏结束，分数 '+score; faceEl.textContent='😵'; }
+}
+
+function drawShip(x,y,w,h,color){
+  ctx.fillStyle=color;
+  ctx.beginPath();
+  ctx.moveTo(x+w/2,y);
+  ctx.lineTo(x+w,y+h);
+  ctx.lineTo(x+w/2,y+h*0.7);
+  ctx.lineTo(x,y+h);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,.85)';
+  ctx.fillRect(x+w/2-2,y+h*0.3,4,h*0.4);
+}
+
+function draw(){
+  ctx.fillStyle='#0e1320'; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#ffffff';
+  for(const s of stars){ ctx.globalAlpha=.5; ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,7); ctx.fill(); }
+  ctx.globalAlpha=1;
+
+  if(started && !gameOver){
+    for(const b of bullets){ ctx.fillStyle='#ffe08a'; ctx.fillRect(b.x,b.y,b.w,b.h); }
+    for(const e of enemies){
+      ctx.fillStyle=e.c; ctx.fillRect(e.x,e.y,e.w,e.h);
+      ctx.fillStyle='rgba(0,0,0,.35)';
+      ctx.fillRect(e.x+e.w*0.2,e.y+e.h*0.3,e.w*0.18,e.h*0.18);
+      ctx.fillRect(e.x+e.w*0.62,e.y+e.h*0.3,e.w*0.18,e.h*0.18);
+    }
+    drawShip(player.x,player.y,player.w,player.h,'#4ec9b0');
+  } else if(!started){
+    ctx.fillStyle='#8b94ab'; ctx.font='18px sans-serif'; ctx.textAlign='center';
+    ctx.fillText('点击屏幕开始', W/2, H/2);
+  }
+}
+
+function loop(){ update(); draw(); requestAnimationFrame(loop); }
+
+// input
+function pointerX(e){
+  const rect=cv.getBoundingClientRect();
+  const cx=(e.touches&&e.touches[0]?e.touches[0].clientX:e.clientX);
+  return (cx-rect.left)*(W/rect.width);
+}
+cv.addEventListener('mousedown',(e)=>{ if(!started) start(); else { const x=pointerX(e)-player.w/2; player.x=Math.max(0,Math.min(W-player.w,x)); } });
+cv.addEventListener('touchstart',(e)=>{ e.preventDefault(); if(!started) start(); else { const x=pointerX(e)-player.w/2; player.x=Math.max(0,Math.min(W-player.w,x)); } },{passive:false});
+cv.addEventListener('touchmove',(e)=>{ e.preventDefault(); if(!started||gameOver) return; const x=pointerX(e)-player.w/2; player.x=Math.max(0,Math.min(W-player.w,x)); },{passive:false});
+cv.addEventListener('mousemove',(e)=>{ if(started&&!gameOver&&(e.buttons&1)){ const x=pointerX(e)-player.w/2; player.x=Math.max(0,Math.min(W-player.w,x)); } });
+window.addEventListener('keydown',(e)=>{ keys[e.key]=true; if(['ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault(); });
+window.addEventListener('keyup',(e)=>{ keys[e.key]=false; });
+faceEl.addEventListener('click', reset);
+
+reset(); loop();
+</script>
+</body>
+</html>

@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>五子棋 Gomoku</title>
+<style>
+  :root { --bg:#1b1f2a; --panel:#283041; --line:#141821; --text:#e8ecf5; --accent:#ffb454; --good:#4ec9b0; }
+  * { box-sizing: border-box; }
+  body { margin:0; min-height:100vh; background:radial-gradient(1200px 600px at 50% -10%, #232a3a, var(--bg));
+    color:var(--text); font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    display:flex; flex-direction:column; align-items:center; padding:18px 12px 36px; }
+  h1 { font-size:20px; letter-spacing:2px; margin:2px 0 12px; }
+  .hud { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-bottom:10px; align-items:center; }
+  .box { background:var(--line); border-radius:10px; padding:6px 14px; text-align:center; min-width:70px; }
+  .box .k { font-size:11px; color:#8b94ab; } .box .v { font-size:15px; font-weight:700; color:var(--accent); }
+  .modebtn { background:var(--panel); color:var(--text); border:1px solid #3a4256; border-radius:10px;
+    padding:8px 14px; font-size:13px; cursor:pointer; }
+  .modebtn:active { background:var(--accent); color:#1b1f2a; }
+  #board { background:#2b3344; border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,.35); touch-action:none;
+    display:block; width:min(92vw,540px); height:auto; aspect-ratio:1; }
+  .face { margin-top:12px; width:46px; height:46px; border-radius:50%; border:none; background:var(--accent);
+    color:#1b1f2a; font-size:22px; cursor:pointer; }
+  .status { min-height:20px; margin-top:12px; color:var(--good); font-weight:600; text-align:center; }
+  .tips { color:#8b94ab; font-size:12px; margin-top:10px; max-width:340px; text-align:center; line-height:1.7; }
+</style>
+</head>
+<body>
+  <a href="index.html" style="position:fixed;top:10px;left:12px;z-index:50;background:#283041;color:#e8ecf5;text-decoration:none;padding:6px 12px;border-radius:10px;font-size:13px;border:1px solid #3a4256;">🏠 大厅</a>
+  <h1>⚫ 五子棋 GOMOKU</h1>
+  <div class="hud">
+    <div class="box"><div class="k">模式</div><div class="v" id="modeLabel">人机</div></div>
+    <div class="box"><div class="k">回合</div><div class="v" id="turn">黑棋</div></div>
+    <button class="modebtn" id="modeBtn">切换 双人/人机</button>
+  </div>
+  <canvas id="board" width="540" height="540"></canvas>
+  <button class="face" id="face" title="重开">🙂</button>
+  <div class="status" id="status">你执黑先手，点击落子</div>
+  <div class="tips">人机：你执黑，AI 执白。双人：轮流落子。<br>手机：直接点棋盘交叉点。</div>
+
+<script>
+const SIZE=540, GRID=15, PAD=32, GAP=(SIZE-2*PAD)/(GRID-1);
+const canvas=document.getElementById('board'), ctx=canvas.getContext('2d');
+const statusEl=document.getElementById('status'), turnEl=document.getElementById('turn'),
+      modeLabelEl=document.getElementById('modeLabel'), modeBtn=document.getElementById('modeBtn'),
+      faceEl=document.getElementById('face');
+
+let board, current, mode='pve', gameOver=false, aiThinking=false;
+
+function init(){
+  board = Array.from({length:GRID},()=>Array(GRID).fill(0));
+  current = 1; gameOver=false; aiThinking=false;
+  modeLabelEl.textContent = mode==='pve'?'人机':'双人';
+  turnEl.textContent = current===1?'黑棋':'白棋';
+  statusEl.textContent = mode==='pve' ? '你执黑先手，点击落子' : '黑棋先手';
+  draw();
+}
+
+function cellXY(r,c){ return [PAD+c*GAP, PAD+r*GAP]; }
+
+function draw(){
+  ctx.clearRect(0,0,SIZE,SIZE);
+  ctx.strokeStyle='#5b6276'; ctx.lineWidth=1;
+  for(let i=0;i<GRID;i++){
+    let x=PAD+i*GAP;
+    ctx.beginPath(); ctx.moveTo(x,PAD); ctx.lineTo(x,PAD+(GRID-1)*GAP); ctx.stroke();
+    let y=PAD+i*GAP;
+    ctx.beginPath(); ctx.moveTo(PAD,y); ctx.lineTo(PAD+(GRID-1)*GAP,y); ctx.stroke();
+  }
+  for(let r=0;r<GRID;r++) for(let c=0;c<GRID;c++) if(board[r][c]) drawStone(r,c,board[r][c]);
+  const stars=[[3,3],[3,11],[11,3],[11,11],[7,7]];
+  ctx.fillStyle='#5b6276';
+  stars.forEach(([r,c])=>{ const [x,y]=cellXY(r,c); ctx.beginPath(); ctx.arc(x,y,3,0,7); ctx.fill(); });
+}
+
+function drawStone(r,c,color){
+  const [x,y]=cellXY(r,c), rad=GAP*0.42;
+  ctx.beginPath(); ctx.arc(x,y,rad,0,Math.PI*2);
+  const g=ctx.createRadialGradient(x-rad*0.3,y-rad*0.3,rad*0.1,x,y,rad);
+  if(color===1){ g.addColorStop(0,'#5a5f6e'); g.addColorStop(1,'#0c0f16'); }
+  else { g.addColorStop(0,'#ffffff'); g.addColorStop(1,'#c4ccd9'); }
+  ctx.fillStyle=g; ctx.fill();
+  ctx.strokeStyle='rgba(0,0,0,.3)'; ctx.lineWidth=1; ctx.stroke();
+}
+
+function place(r,c,color){ board[r][c]=color; drawStone(r,c,color); }
+
+function getCell(mx,my){
+  const c=Math.round((mx-PAD)/GAP), r=Math.round((my-PAD)/GAP);
+  if(r<0||r>=GRID||c<0||c>=GRID) return null;
+  const [x,y]=cellXY(r,c);
+  if(Math.hypot(mx-x,my-y) > GAP/2) return null;
+  return [r,c];
+}
+
+function checkWin(r,c,color){
+  const dirs=[[0,1],[1,0],[1,1],[1,-1]];
+  for(const [dr,dc] of dirs){
+    let cnt=1;
+    for(let s=1;s<5;s++){ const nr=r+dr*s,nc=c+dc*s; if(nr<0||nr>=GRID||nc<0||nc>=GRID||board[nr][nc]!==color) break; cnt++; }
+    for(let s=1;s<5;s++){ const nr=r-dr*s,nc=c-dc*s; if(nr<0||nr>=GRID||nc<0||nc>=GRID||board[nr][nc]!==color) break; cnt++; }
+    if(cnt>=5) return true;
+  }
+  return false;
+}
+
+function fullBoard(){ return board.flat().every(v=>v!==0); }
+
+function handleClick(e){
+  if(gameOver||aiThinking) return;
+  const rect=canvas.getBoundingClientRect();
+  const pt = (e.touches && e.touches[0]) ? e.touches[0] : e;
+  const mx=(pt.clientX-rect.left)*(SIZE/rect.width);
+  const my=(pt.clientY-rect.top)*(SIZE/rect.height);
+  const cell=getCell(mx,my);
+  if(!cell) return;
+  const [r,c]=cell;
+  if(board[r][c]!==0) return;
+  if(mode==='pve' && current!==1) return;
+  place(r,c,current);
+  if(checkWin(r,c,current)){ endGame(current); return; }
+  if(fullBoard()){ statusEl.textContent='平局'; gameOver=true; faceEl.textContent='😐'; return; }
+  current = current===1?2:1;
+  updateTurn();
+  if(mode==='pve' && current===2){ aiThinking=true; statusEl.textContent='AI 思考中…'; setTimeout(aiMove, 220); }
+}
+
+function updateTurn(){
+  turnEl.textContent = current===1?'黑棋':'白棋';
+  if(mode==='pve') statusEl.textContent = current===1?'轮到你（黑）':'AI 思考中…';
+  else statusEl.textContent = current===1?'轮到黑棋':'轮到白棋';
+}
+
+function endGame(winner){
+  gameOver=true;
+  if(winner===1){ statusEl.textContent = mode==='pve'?'🎉 你赢了！':'⚫ 黑棋胜利！'; faceEl.textContent='😎'; }
+  else { statusEl.textContent = mode==='pve'?'🤖 AI 获胜':'⚪ 白棋胜利！'; faceEl.textContent='😵'; }
+}
+
+function pattern(line,open){
+  if(line>=5) return 1000000;
+  if(line===4){ if(open===2) return 100000; if(open===1) return 12000; return 0; }
+  if(line===3){ if(open===2) return 8000; if(open===1) return 800; return 0; }
+  if(line===2){ if(open===2) return 600; if(open===1) return 60; return 0; }
+  if(line===1){ if(open===2) return 40; if(open===1) return 5; return 0; }
+  return 0;
+}
+
+function evaluate(r,c,color){
+  board[r][c]=color;
+  let score=0;
+  const dirs=[[0,1],[1,0],[1,1],[1,-1]];
+  for(const [dr,dc] of dirs){
+    let cnt=1, pr=r+dr, pc=c+dc;
+    while(pr>=0&&pr<GRID&&pc>=0&&pc<GRID&&board[pr][pc]===color){ cnt++; pr+=dr; pc+=dc; }
+    const openPos = (pr>=0&&pr<GRID&&pc>=0&&pc<GRID&&board[pr][pc]===0);
+    pr=r-dr; pc=c-dc;
+    while(pr>=0&&pr<GRID&&pc>=0&&pc<GRID&&board[pr][pc]===color){ cnt++; pr-=dr; pc-=dc; }
+    const openNeg = (pr>=0&&pr<GRID&&pc>=0&&pc<GRID&&board[pr][pc]===0);
+    score += pattern(cnt,(openPos?1:0)+(openNeg?1:0));
+  }
+  board[r][c]=0;
+  return score;
+}
+
+function aiMove(){
+  const empties = board.flat().filter(v=>v===0).length;
+  let best=null, bestScore=-1;
+  if(empties===GRID*GRID-1){ best=[7,7]; }
+  else {
+    for(let r=0;r<GRID;r++) for(let c=0;c<GRID;c++){
+      if(board[r][c]!==0) continue;
+      const atk=evaluate(r,c,2), def=evaluate(r,c,1);
+      const s = atk + def*1.15 + Math.random()*5;
+      if(s>bestScore){ bestScore=s; best=[r,c]; }
+    }
+  }
+  if(!best){ aiThinking=false; return; }
+  const [r,c]=best;
+  place(r,c,2);
+  aiThinking=false;
+  if(checkWin(r,c,2)){ endGame(2); return; }
+  if(fullBoard()){ statusEl.textContent='平局'; gameOver=true; faceEl.textContent='😐'; return; }
+  current=1; updateTurn();
+}
+
+canvas.addEventListener('click', handleClick);
+canvas.addEventListener('touchstart', (e)=>{ e.preventDefault(); handleClick(e); }, {passive:false});
+modeBtn.addEventListener('click', ()=>{ mode = mode==='pve'?'pvp':'pve'; init(); });
+faceEl.addEventListener('click', init);
+
+init();
+</script>
+</body>
+</html>
